@@ -4,23 +4,22 @@ from src.utils.logger import logger
 def validar_semantica(df: pd.DataFrame) -> pd.Series:
     logger.info("--- Iniciando Validación Semántica (Reglas de Negocio) ---")
     
-    # Regla 1: Rango de edad lógico para contratos [cite: 9]
+    # Regla 1: Rango de edad lógico para contratos [18-100]
     regla_edad = (df['age'] >= 18) & (df['age'] <= 100)
     
-    # Regla 2: Coherencia de calendario y fechas [cite: 24-25]
+    # Regla 2: Coherencia de calendario
     regla_dias = (df['day'] >= 1) & (df['day'] <= 31)
     meses_validos = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     regla_mes = df['month'].str.lower().isin(meses_validos)
     
-    # Regla 3: Métricas operacionales coherentes [cite: 21, 26]
+    # Regla 3: Métricas operacionales coherentes
     regla_duracion = df['duration'] >= 0
     regla_campaign = df['campaign'] >= 1
     
-    # Regla 4: Consistencia en el historial de campañas [cite: 28-29]
-    # Si pdays es -1 (primer contacto), 'previous' debe ser necesariamente 0 [cite: 28-29]
+    # Regla 4: Consistencia en el historial de campañas (pdays=-1 implica previous=0)
     regla_historial = ~((df['pdays'] == -1) & (df['previous'] > 0))
     
-    # Regla 5: MODIFICADA - Ajustada a valores numéricos 1 y 0 post-transformación 
+    # Regla 5: Variables binarias estrictas (1 y 0)
     valores_binarios = [1, 0]
     regla_binarias = (
         df['default'].isin(valores_binarios) &
@@ -29,12 +28,9 @@ def validar_semantica(df: pd.DataFrame) -> pd.Series:
         df['deposit'].isin(valores_binarios)
     )
     
-    # Unificación de todas las reglas para validar filas
     filas_validas = regla_edad & regla_dias & regla_mes & regla_duracion & regla_campaign & regla_historial & regla_binarias
     
-    # Reporte de anomalías para logs
     total_filas = len(df)
-    
     if not regla_edad.all():
         logger.warning(f"Negocio: {total_filas - regla_edad.sum()} registros presentan edades fuera del rango [18-100].")
     if not regla_historial.all():
